@@ -24,6 +24,7 @@ CHANNEL_ID = os.environ.get("CHANNEL_ID")
 ZEE5_API_URL = "https://hons-cb.zee5.com/api/v1/content/tvshow"
 
 SENT_LINKS_FILE = "sent_episodes.txt"
+LAST_OFFSET = None
 
 
 def get_sent_links():
@@ -84,10 +85,37 @@ def check_zee5_updates():
     print(f"Error checking updates: {e}")
 
 
+# /start കമാൻഡിന് മറുപടി നൽകാൻ
+def check_start():
+  global LAST_OFFSET
+  try:
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
+    params = {"timeout": 1}
+    if LAST_OFFSET:
+      params["offset"] = LAST_OFFSET
+
+    res = requests.get(url, params=params).json()
+    updates = res.get("result", [])
+
+    for u in updates:
+      LAST_OFFSET = u.get("update_id") + 1
+      msg = u.get("message", {})
+      if msg.get("text") == "/start":
+        chat_id = msg.get("chat", {}).get("id")
+        reply = "Hi, I am a Zee5 Notification Bot. I am active!"
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            data={"chat_id": chat_id, "text": reply},
+        )
+  except Exception as e:
+    print(f"Start command error: {e}")
+
+
 def bot_loop():
   while True:
+    check_start()
     check_zee5_updates()
-    time.sleep(3600)  # Check every 1 hour
+    time.sleep(3)
 
 
 if __name__ == "__main__":
@@ -96,4 +124,4 @@ if __name__ == "__main__":
   t.start()
   # Start Web Server for Render Port Check
   run_web_server()
-    
+  
