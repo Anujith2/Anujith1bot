@@ -21,7 +21,11 @@ def run_web_server():
 # Telegram Bot Config
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
-ZEE5_API_URL = "https://hons-cb.zee5.com/api/v1/content/tvshow"
+
+# നിങ്ങൾ നൽകിയ Zee5 ലിങ്ക് ഇവിടെ സെറ്റ് ചെയ്തു
+ZEE5_COLLECTION_URL = (
+    "https://www.zee5.com/tv-shows/collections/free-zee-keralam-episodes/0-8-640"
+)
 
 SENT_LINKS_FILE = "sent_episodes.txt"
 LAST_OFFSET = None
@@ -56,23 +60,15 @@ def send_telegram_message(text):
 def check_zee5_updates():
   sent_links = get_sent_links()
   try:
-    # Zee5 Data Checking logic
-    show_name = "Kudumbashree Sharada"
-    channel_title = "Zee Keralam HD - ZEE5"
-    episode_no = "1593"
-    episode_title = "Sushmita Plots against Shalini"
-    release_time = "2026-09-03 07:04 PM (Thursday) IST"
-    watch_link = "https://www.zee5.com/tvshows/details/kudumbashree-sharada/0-6-4z5129937/sushmita-plots-against-shalini/0-1-6z51049298"
+    watch_link = ZEE5_COLLECTION_URL
 
     if watch_link not in sent_links:
-      caption = f"""⎔ **New Episode Released**
+      caption = f"""⎔ **New Episode Collection Updated**
 
-│ **{show_name}**
+│ **Zee Keralam Free Episodes**
 ├─────────────────
-├ **{channel_title}**
-├ **Episode {episode_no}**
-├ **{episode_title}**
-└ **{release_time}**
+├ **Platform:** ZEE5
+└ **Latest Updates Available**
 
 ➤ **Watch Link:**
 {watch_link}
