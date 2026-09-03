@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+from bs4 import BeautifulSoup
 from flask import Flask
 import requests
 
@@ -22,10 +23,26 @@ def run_web_server():
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
 
-# നിങ്ങൾ നൽകിയ Zee5 ലിങ്ക് ഇവിടെ സെറ്റ് ചെയ്തു
-ZEE5_COLLECTION_URL = (
-    "https://www.zee5.com/tv-shows/collections/free-zee-keralam-episodes/0-8-640"
-)
+# നിങ്ങൾ നൽകിയ 15 സീരിയലുകളുടെ ലിങ്കുകൾ
+TARGET_SHOWS = [
+    "https://www.zee5.com/tv-shows/details/aval-arundhati/0-6-4z5757767",
+    "https://www.zee5.com/tv-shows/details/snehapoorvam-shyama/0-6-4z5629132",
+    "https://www.zee5.com/tv-shows/details/kudumbashree-sharada/0-6-4z5129937",
+    "https://www.zee5.com/tv-shows/details/karnan/0-6-4z51012718",
+    "https://www.zee5.com/tv-shows/details/mangalyam/0-6-4z5410029",
+    "https://www.zee5.com/tv-shows/details/pranayavilasam/0-6-4z5906216",
+    "https://www.zee5.com/tv-shows/details/valyettan/0-6-4z5906706",
+    "https://www.zee5.com/tv-shows/details/krishnagadha/0-6-4z5782715",
+    "https://www.zee5.com/tv-shows/details/durga/0-6-4z5845501",
+    "https://www.zee5.com/tv-shows/details/akale/0-6-4z5654322",
+    (
+        "https://www.zee5.com/tv-shows/details/saregamapa-lil-champs-season-2/0-6-4z51011498"
+    ),
+    "https://www.zee5.com/tv-shows/details/chembarathy/0-6-4z5825811",
+    "https://www.zee5.com/tv-shows/details/meghasandhesham/0-6-4z5782717",
+    "https://www.zee5.com/tv-shows/details/ashwathi-nakshatram/0-6-4z5577974",
+    "https://www.zee5.com/tv-shows/details/kudumbasametham/0-6-4z5802132",
+]
 
 SENT_LINKS_FILE = "sent_episodes.txt"
 LAST_OFFSET = None
@@ -46,7 +63,6 @@ def save_sent_link(link):
 
 def send_telegram_message(text):
   if not BOT_TOKEN or not CHANNEL_ID:
-    print("BOT_TOKEN or CHANNEL_ID missing in Environment Variables!")
     return
   url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
   payload = {
@@ -57,28 +73,50 @@ def send_telegram_message(text):
   requests.post(url, data=payload)
 
 
+# എല്ലാ സീരിയൽ ലിങ്കുകളും ചെക്ക് ചെയ്യുന്ന ഫങ്ഷൻ
 def check_zee5_updates():
   sent_links = get_sent_links()
-  try:
-    watch_link = ZEE5_COLLECTION_URL
+  headers = {
+      "User-Agent": (
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      )
+  }
 
-    if watch_link not in sent_links:
-      caption = f"""⎔ **New Episode Collection Updated**
+  for show_url in TARGET_SHOWS:
+    try:
+      response = requests.get(show_url, headers=headers)
+      if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        links = soup.find_all("a", href=True)
 
-│ **Zee Keralam Free Episodes**
+        for a in links:
+          href = a["href"]
+          # പുതിയ എപ്പിസോഡിന്റെ ഡയറക്റ്റ് ലിങ്ക് കണ്ടെത്തുന്നു
+          if "/tvshows/details/" in href and href != show_url:
+            full_url = (
+                href
+                if href.startswith("http")
+                else f"https://www.zee5.com{href}"
+            )
+
+            if full_url not in sent_links:
+              show_name = show_url.split("/details/")[1].split("/")[0].replace("-", " ").title()
+              caption = f"""⎔ **New Episode Updated**
+
+│ **Show:** {show_name}
 ├─────────────────
-├ **Platform:** ZEE5
-└ **Latest Updates Available**
+├ **Platform:** ZEE5 Malayalam
+└ **Status:** Latest Episode Available
 
 ➤ **Watch Link:**
-{watch_link}
+{full_url}
 
 │ 🌟─────────────────🌟"""
-      send_telegram_message(caption)
-      save_sent_link(watch_link)
-
-  except Exception as e:
-    print(f"Error checking updates: {e}")
+              send_telegram_message(caption)
+              save_sent_link(full_url)
+              time.sleep(1)
+    except Exception as e:
+      print(f"Error checking show {show_url}: {e}")
 
 
 # /start കമാൻഡിന് മറുപടി നൽകാൻ
@@ -111,13 +149,11 @@ def bot_loop():
   while True:
     check_start()
     check_zee5_updates()
-    time.sleep(3)
+    time.sleep(300)  # 5 മിനിറ്റ് കൂടുമ്പോൾ എല്ലാ ലിങ്കുകളും ചെക്ക് ചെയ്യും
 
 
 if __name__ == "__main__":
-  # Start Bot in background thread
   t = threading.Thread(target=bot_loop)
   t.start()
-  # Start Web Server for Render Port Check
   run_web_server()
   
